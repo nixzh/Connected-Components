@@ -1,0 +1,129 @@
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <string>
+#include <iomanip>
+
+using namespace cv;
+using namespace std;
+
+void set_and(Mat input1, Mat input2, Mat output)//集合交运算
+{
+	int a = input1.rows;
+	int b = input1.cols;
+	for (int i = 0; i < a; i++)
+	{
+		for (int j = 0; j < b; j++)
+		{
+			output.at<uchar>(i, j) = input1.at<uchar>(i, j) * input2.at<uchar>(i, j) / 255;
+		}
+	}
+}
+
+int equadj(Mat array1, Mat array2)
+{
+	int a = 0;
+	for (int i = 0; i < array1.rows; i++)
+	{
+		for (int j = 0; j < array1.cols; j++)
+		{
+			if (array1.at<uchar>(i, j) != array2.at<uchar>(i, j))
+			{
+				a = 1;
+				break;
+			}
+		}
+	}
+	return a;
+}
+int main()
+{
+	Mat a=Mat::zeros(1, 10000, CV_16UC1);
+	Mat kenel1 = Mat::ones(5, 5, CV_8UC1);
+	Mat kenel2 = Mat::ones(3, 3, CV_8UC1);
+	Mat img1;
+	
+	do
+	{
+		char m[100];
+		cout << "请输入图片路径：" << endl;
+		cin.getline(m, 100);
+		img1 = imread(m, 0);
+	} while (img1.empty());
+	
+	//阈值处理
+	for (int i = 0; i < img1.rows; i++)
+	{
+		for (int j = 0; j < img1.cols; j++)
+		{
+			if (img1.at<uchar>(i,j) > 203)
+			{
+				img1.at<uchar>(i, j) = 255;
+            }
+			else
+			{
+				img1.at<uchar>(i, j) = 0;
+			}
+		}
+	}
+
+	//腐蚀
+	erode(img1, img1, kenel1, Point(-1, -1));
+	
+	//连通分量统计
+	Mat img2 = Mat::zeros(img1.size(), CV_8UC1);
+	Mat img3 = Mat::zeros(img1.size(), CV_8UC1);
+	int c = 1,s=0;
+	int u = 0, v = 0;
+	for (int i = 0; i < img1.rows; i++)
+	{
+		for (int j = 0; j < img1.cols; j++)
+		{
+			if (img2.at<uchar>(i, j) != img1.at<uchar>(i, j))
+			{
+				img2.at<uchar>(i, j) = img1.at<uchar>(i, j);
+				do
+				{
+					dilate(img2, img2, kenel2, Point(-1, -1));
+					set_and(img1, img2, img2);
+					c = equadj(img2, img3);
+					if (c == 0)
+					{
+						for (int p = 0; p < img1.rows; p++)
+						{
+							for (int q = 0; q < img1.cols; q++)
+							{
+								u = u + img2.at<uchar>(p, q) / 255;
+							}
+						}
+						s = u - v;
+						a.at<short>(0, s) = a.at<short>(0, s) + 1;
+						v = u;
+						u = 0;
+					}
+					else
+					{
+						img2.copyTo(img3);
+						
+					}
+				} while (c == 1);
+			}
+		}
+	}
+
+	//显示连通分量 像素数目+对应连通区域个数
+	cout << left;
+	cout << setw(12) << "像素数目" << setw(12) << "对应连通分量数目" << endl;
+	cout << "----------------------------" << endl;
+	for (int g = 1; g <10000; g++)
+	{
+		if (a.at<short>(0, g) != 0)
+		{
+			cout << setw(12) << g << setw(12) << a.at<short>(0, g) << endl;
+		}
+	}
+
+	imwrite("F://连通分量.tif", img1);
+	imshow("连通分量",img1);
+	waitKey();
+	return 0;
+}
